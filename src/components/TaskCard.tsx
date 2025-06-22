@@ -197,7 +197,7 @@ export function TaskCard({ task, users, onClick, className = '' }: TaskCardProps
           <Calendar className="w-4 h-4" />
           <span className="uppercase">СРОК {format(new Date(task.deadline), 'dd.MM.yyyy')}</span>
           {isOverdue && <span className="text-red-600 font-medium uppercase">(ПРОСРОЧЕНО)</span>}
-          {isDueSoon && <span className="text-orange-600 font-medium uppercase">(СКОРО СРОК)</span>}
+          {isDueSoon && <span className="text-orange-600 font-medium uppercase">(СКОРО ИСТЕКАЕТ СРОК)</span>}
         </div>
       )}
 
