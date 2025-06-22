@@ -188,7 +188,7 @@ export function KanbanBoard() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex justify-center space-x-12 p-8 min-w-full h-full">
+        <div className="flex justify-center space-x-8 p-6 min-w-full h-full">
           {columns.map((column) => {
             const columnTasks = sortTasks(
               tasks.filter(task => task.status === column.id)

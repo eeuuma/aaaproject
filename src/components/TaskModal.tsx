@@ -20,6 +20,8 @@ import {
   Play,
   Download,
   Pause,
+  Undo,
+  Redo,
 } from 'lucide-react';
 import { Task, User as UserType, Comment, Attachment, VoiceMessage } from '../types';
 import { useApp } from '../context/AppContext';
@@ -52,8 +54,11 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
 
   // Получение пользователей текущей доски
   const boardUsers = users.filter(user => user.boardIds.includes(currentBoardId || ''));
@@ -88,6 +93,8 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
     }
     setNewAttachments([]);
     setHasUnsavedChanges(false);
+    setHistory([]);
+    setHistoryIndex(-1);
   }, [task, currentUser, defaultStatus]);
 
   // Отслеживание изменений
@@ -278,6 +285,27 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
     setVoiceMessages(prev => prev.filter(vm => vm.id !== voiceId));
   };
 
+  const saveToHistory = (text: string) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(text);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      setFormData({ ...formData, description: history[historyIndex - 1] });
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      setFormData({ ...formData, description: history[historyIndex + 1] });
+    }
+  };
+
   const applyTextFormat = (format: string) => {
     const textarea = descriptionRef.current;
     if (!textarea) return;
@@ -318,6 +346,7 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
     }
 
     const newValue = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
+    saveToHistory(formData.description);
     setFormData({ ...formData, description: newValue });
     
     setTimeout(() => {
@@ -330,7 +359,7 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
     return new Date().toISOString().split('T')[0];
   };
 
-  // Функция для отображения форматированного текста
+  // Функция для отображения форматированного текста без markdown символов
   const renderFormattedText = (text: string) => {
     if (!text) return '';
     
@@ -384,15 +413,24 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
 
         <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
           <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-4 md:space-y-6">
-            {/* Название */}
+            {/* Название с автоматическим изменением размера */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
                 НАЗВАНИЕ ЗАДАЧИ
               </label>
               <textarea
+                ref={titleRef}
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#b6c2fc] focus:border-[#b6c2fc] transition-colors resize-y min-h-[60px]"
+                onChange={(e) => {
+                  setFormData({ ...formData, title: e.target.value });
+                  // Автоматическое изменение высоты
+                  if (titleRef.current) {
+                    titleRef.current.style.height = 'auto';
+                    titleRef.current.style.height = titleRef.current.scrollHeight + 'px';
+                  }
+                }}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#b6c2fc] focus:border-[#b6c2fc] transition-colors resize-none overflow-y-auto"
+                style={{ minHeight: '60px', maxHeight: '120px' }}
                 placeholder="ВВЕДИТЕ НАЗВАНИЕ ЗАДАЧИ..."
                 required
               />
@@ -406,6 +444,25 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
               
               {/* Панель инструментов форматирования */}
               <div className="flex items-center space-x-1 mb-2 p-2 rounded-xl border" style={{ backgroundColor: '#a4d2fc' }}>
+                <button
+                  type="button"
+                  onClick={undo}
+                  disabled={historyIndex <= 0}
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg transition-colors disabled:opacity-50"
+                  title="ОТМЕНИТЬ"
+                >
+                  <Undo className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={redo}
+                  disabled={historyIndex >= history.length - 1}
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg transition-colors disabled:opacity-50"
+                  title="ПОВТОРИТЬ"
+                >
+                  <Redo className="w-4 h-4" />
+                </button>
+                <div className="w-px h-6 bg-gray-300 mx-1"></div>
                 <button
                   type="button"
                   onClick={() => applyTextFormat('bold')}
@@ -477,9 +534,16 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
               <textarea
                 ref={descriptionRef}
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={6}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#b6c2fc] focus:border-[#b6c2fc] transition-colors resize-y min-h-[120px] overflow-y-auto"
+                onChange={(e) => {
+                  setFormData({ ...formData, description: e.target.value });
+                  // Автоматическое изменение высоты
+                  if (descriptionRef.current) {
+                    descriptionRef.current.style.height = 'auto';
+                    descriptionRef.current.style.height = descriptionRef.current.scrollHeight + 'px';
+                  }
+                }}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#b6c2fc] focus:border-[#b6c2fc] transition-colors resize-none overflow-y-auto"
+                style={{ minHeight: '120px', maxHeight: '300px' }}
                 placeholder="ОПИШИТЕ ЗАДАЧУ..."
               />
               
@@ -728,7 +792,7 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
                             className="w-5 h-5 rounded-full object-cover"
                           />
                         ) : (
-                          <div className="w-5 h-5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                          <div className="w-5 h-5 bg-gradient-to-br from-purple-300 to-pink-300 rounded-full flex items-center justify-center text-white text-xs font-medium">
                             {user.firstName.charAt(0).toUpperCase()}
                           </div>
                         )}
@@ -776,7 +840,7 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
+                              <div className="w-full h-full bg-gradient-to-br from-blue-300 to-teal-300 flex items-center justify-center">
                                 {commenter?.firstName?.charAt(0).toUpperCase()}{commenter?.lastName?.charAt(0).toUpperCase()}
                               </div>
                             )}

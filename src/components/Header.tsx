@@ -145,6 +145,12 @@ export function Header({ currentView, onViewChange, onCreateTask }: HeaderProps)
 
   const iconColor = '#B6C2FC';
 
+  // Функция для обрезки названия доски на мобильных устройствах
+  const truncateBoardName = (name: string, maxLength: number = 15) => {
+    if (name.length <= maxLength) return name;
+    return name.substring(0, maxLength) + '...';
+  };
+
   return (
     <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4">
       <div className="flex items-center justify-between">
@@ -159,18 +165,17 @@ export function Header({ currentView, onViewChange, onCreateTask }: HeaderProps)
             </div>
           </div>
 
-          {/* Селектор досок */}
+          {/* Селектор досок с адаптивной шириной */}
           <div className="relative flex-1 max-w-xs board-dropdown-container">
             <button
               onClick={() => setShowBoardDropdown(!showBoardDropdown)}
               className="flex items-center space-x-2 px-3 md:px-4 py-2 rounded-lg transition-colors w-full text-left bg-white border border-gray-200 hover:border-gray-300"
+              style={{ minWidth: isMobile ? '120px' : '200px', maxWidth: isMobile ? '180px' : '300px' }}
             >
               <Folder className="w-3 h-3 md:w-4 md:h-4 text-gray-600 flex-shrink-0" />
               <span className="font-medium text-gray-900 uppercase truncate text-sm md:text-base">
                 {currentBoard?.name ? (
-                  isMobile && currentBoard.name.length > 12 
-                    ? currentBoard.name.substring(0, 12) + '...'
-                    : currentBoard.name
+                  isMobile ? truncateBoardName(currentBoard.name, 12) : currentBoard.name
                 ) : 'ВЫБЕРИТЕ ДОСКУ'}
               </span>
               <ChevronDown className="w-3 h-3 md:w-4 md:h-4 text-gray-600 flex-shrink-0" />
@@ -367,7 +372,7 @@ export function Header({ currentView, onViewChange, onCreateTask }: HeaderProps)
                   className="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover"
                 />
               ) : (
-                <div className="w-6 h-6 md:w-8 md:h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-medium text-xs md:text-sm">
+                <div className="w-6 h-6 md:w-8 md:h-8 bg-gradient-to-br from-purple-300 to-pink-300 rounded-full flex items-center justify-center text-white font-medium text-xs md:text-sm">
                   {currentUser?.firstName?.charAt(0).toUpperCase()}{currentUser?.lastName?.charAt(0).toUpperCase()}
                 </div>
               )}

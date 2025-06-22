@@ -142,7 +142,6 @@ export function UserManagement() {
   const getUserTaskStats = (userId: string) => {
     const userTasks = tasks.filter(task => task.assigneeIds?.includes(userId) || task.assigneeId === userId);
     return {
-      total: userTasks.length,
       completed: userTasks.filter(task => task.status === 'completed').length,
       inProgress: userTasks.filter(task => task.status === 'in-progress').length,
     };
@@ -156,7 +155,6 @@ export function UserManagement() {
   };
 
   // Общая статистика
-  const totalTasks = tasks.length;
   const totalCompleted = tasks.filter(task => task.status === 'completed').length;
 
   // Мобильная версия - список пользователей
@@ -185,8 +183,8 @@ export function UserManagement() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
-              <div className="text-xl font-bold text-blue-600">{totalTasks}</div>
-              <div className="text-xs text-gray-500 uppercase">ВСЕГО ЗАДАЧ</div>
+              <div className="text-xl font-bold text-blue-600">{boardUsers.length}</div>
+              <div className="text-xs text-gray-500 uppercase">ПОЛЬЗОВАТЕЛЕЙ</div>
             </div>
             <div>
               <div className="text-xl font-bold text-green-600">{totalCompleted}</div>
@@ -332,7 +330,7 @@ export function UserManagement() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
+                        <div className="w-full h-full bg-gradient-to-br from-blue-300 to-teal-300 flex items-center justify-center">
                           {user.firstName.charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -362,8 +360,8 @@ export function UserManagement() {
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        <div className="uppercase">{stats.total} ВСЕГО ЗАДАЧ</div>
                         <div className="text-green-600 uppercase">{stats.completed} ВЫПОЛНЕНО</div>
+                        <div className="text-blue-600 uppercase">{stats.inProgress} В ПРОЦЕССЕ</div>
                       </div>
                     </div>
                   </div>
@@ -410,8 +408,8 @@ export function UserManagement() {
         {/* Общая статистика */}
         <div className="flex items-center space-x-4">
           <div className="text-center">
-            <div className="text-lg font-bold text-blue-600">{totalTasks}</div>
-            <div className="text-xs text-gray-500 uppercase">ВСЕГО ЗАДАЧ</div>
+            <div className="text-lg font-bold text-blue-600">{boardUsers.length}</div>
+            <div className="text-xs text-gray-500 uppercase">ПОЛЬЗОВАТЕЛЕЙ</div>
           </div>
           <div className="text-center">
             <div className="text-lg font-bold text-green-600">{totalCompleted}</div>
@@ -556,10 +554,8 @@ export function UserManagement() {
             <thead className="border-b border-gray-200" style={{ backgroundColor: '#a4d2fc' }}>
               <tr>
                 <th className="text-left py-4 px-6 font-medium text-gray-700 uppercase">ПОЛЬЗОВАТЕЛЬ</th>
-                <th className="text-left py-4 px-6 font-medium text-gray-700 uppercase">ВСЕГО</th>
                 <th className="text-left py-4 px-6 font-medium text-gray-700 uppercase">ВЫПОЛНЕНО</th>
                 <th className="text-left py-4 px-6 font-medium text-gray-700 uppercase">В ПРОЦЕССЕ</th>
-                <th className="text-left py-4 px-6 font-medium text-gray-700 uppercase">СОЗДАНО</th>
                 <th className="text-left py-4 px-6 font-medium text-gray-700 uppercase">ЭФФЕКТИВНОСТЬ</th>
                 {currentUser?.role === 'admin' && (
                   <th className="text-right py-4 px-6 font-medium text-gray-700 uppercase">ДЕЙСТВИЯ</th>
@@ -570,7 +566,8 @@ export function UserManagement() {
               {boardUsers.map((user) => {
                 const stats = getUserTaskStats(user.id);
                 const isCurrentUser = user.id === currentUser?.id;
-                const efficiency = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+                const total = stats.completed + stats.inProgress;
+                const efficiency = total > 0 ? Math.round((stats.completed / total) * 100) : 0;
                 
                 return (
                   <tr key={user.id} className="hover:bg-gray-50">
@@ -584,7 +581,7 @@ export function UserManagement() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
+                            <div className="w-full h-full bg-gradient-to-br from-blue-300 to-teal-300 flex items-center justify-center">
                               {user.firstName.charAt(0).toUpperCase()}
                             </div>
                           )}
@@ -616,7 +613,6 @@ export function UserManagement() {
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-6 text-gray-900 font-medium">{stats.total}</td>
                     <td className="py-4 px-6">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
                         {stats.completed}
@@ -625,11 +621,6 @@ export function UserManagement() {
                     <td className="py-4 px-6">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
                         {stats.inProgress}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                        {stats.total - stats.completed - stats.inProgress}
                       </span>
                     </td>
                     <td className="py-4 px-6">
