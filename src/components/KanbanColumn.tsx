@@ -41,7 +41,7 @@ export function KanbanColumn({
   };
 
   return (
-    <div className={`flex flex-col h-full ${isMobile ? 'w-full' : 'flex-1 max-w-md mx-4'}`}>
+    <div className={`flex flex-col h-full ${isMobile ? 'w-full' : 'flex-1 max-w-md mx-2'}`}>
       <div className={`border-2 border-dashed rounded-xl p-4 h-full ${colorClasses[color as keyof typeof colorClasses] || 'border-gray-200 bg-gray-50'} ${borderColors[color as keyof typeof borderColors] || 'border-gray-300'}`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
@@ -63,13 +63,13 @@ export function KanbanColumn({
           ref={setNodeRef}
           className="space-y-3 min-h-24 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
           style={{ 
-            maxHeight: isMobile ? 'calc(100vh - 250px)' : 'calc(100vh - 220px)',
-            minHeight: isMobile ? 'calc(100vh - 250px)' : 'calc(100vh - 220px)'
+            maxHeight: isMobile ? 'calc(100vh - 250px)' : 'calc(100vh - 200px)',
+            minHeight: isMobile ? 'calc(100vh - 250px)' : 'calc(100vh - 200px)'
           }}
         >
           <SortableContext items={tasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
             {tasks.map((task) => (
-              <div key={task.id} className="max-w-full">
+              <div key={task.id} className="w-full">
                 <TaskCard
                   task={task}
                   users={users}

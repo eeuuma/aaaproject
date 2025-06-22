@@ -15,6 +15,8 @@ import {
   Share2,
   User as UserIcon,
   Edit,
+  Undo,
+  Redo,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { BoardModal } from './BoardModal';
@@ -36,6 +38,8 @@ export function Header({ currentView, onViewChange, onCreateTask }: HeaderProps)
   const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
   const [editingBoardName, setEditingBoardName] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [actionHistory, setActionHistory] = useState<any[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -143,13 +147,28 @@ export function Header({ currentView, onViewChange, onCreateTask }: HeaderProps)
     setEditingBoardName('');
   };
 
-  const iconColor = '#B6C2FC';
+  // Функции для истории действий
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      // Здесь можно добавить логику отмены действий
+    }
+  };
 
-  // Функция для обрезки названия доски на мобильных устройствах
+  const handleRedo = () => {
+    if (historyIndex < actionHistory.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      // Здесь можно добавить логику повтора действий
+    }
+  };
+
+  // Функция для обрезки названия доски
   const truncateBoardName = (name: string, maxLength: number = 15) => {
     if (name.length <= maxLength) return name;
     return name.substring(0, maxLength) + '...';
   };
+
+  const iconColor = '#B6C2FC';
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4">
@@ -170,12 +189,16 @@ export function Header({ currentView, onViewChange, onCreateTask }: HeaderProps)
             <button
               onClick={() => setShowBoardDropdown(!showBoardDropdown)}
               className="flex items-center space-x-2 px-3 md:px-4 py-2 rounded-lg transition-colors w-full text-left bg-white border border-gray-200 hover:border-gray-300"
-              style={{ minWidth: isMobile ? '120px' : '200px', maxWidth: isMobile ? '180px' : '300px' }}
+              style={{ 
+                minWidth: isMobile ? '120px' : '200px', 
+                maxWidth: isMobile ? '160px' : '280px',
+                width: 'fit-content'
+              }}
             >
               <Folder className="w-3 h-3 md:w-4 md:h-4 text-gray-600 flex-shrink-0" />
               <span className="font-medium text-gray-900 uppercase truncate text-sm md:text-base">
                 {currentBoard?.name ? (
-                  isMobile ? truncateBoardName(currentBoard.name, 12) : currentBoard.name
+                  isMobile ? truncateBoardName(currentBoard.name, 10) : currentBoard.name
                 ) : 'ВЫБЕРИТЕ ДОСКУ'}
               </span>
               <ChevronDown className="w-3 h-3 md:w-4 md:h-4 text-gray-600 flex-shrink-0" />
@@ -270,6 +293,26 @@ export function Header({ currentView, onViewChange, onCreateTask }: HeaderProps)
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Кнопки отмены/повтора действий */}
+          <div className="hidden md:flex items-center space-x-1">
+            <button
+              onClick={handleUndo}
+              disabled={historyIndex <= 0}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              title="ОТМЕНИТЬ ДЕЙСТВИЕ"
+            >
+              <Undo className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleRedo}
+              disabled={historyIndex >= actionHistory.length - 1}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              title="ПОВТОРИТЬ ДЕЙСТВИЕ"
+            >
+              <Redo className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Навигация для десктопа */}

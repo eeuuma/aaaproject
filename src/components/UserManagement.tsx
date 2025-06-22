@@ -18,10 +18,6 @@ export function UserManagement() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
     username: '',
-    email: '',
-    firstName: '',
-    lastName: '',
-    patronymic: '',
     role: 'user' as 'admin' | 'user',
   });
   const [error, setError] = useState('');
@@ -40,88 +36,45 @@ export function UserManagement() {
   // Получение пользователей текущей доски
   const boardUsers = users.filter(user => user.boardIds.includes(currentBoardId || ''));
 
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.(ru|com|org|net|edu|gov|mil|int|info|biz|name|museum|coop|aero|[a-z]{2})$/i;
-    return emailRegex.test(email);
-  };
-
-  const validateUsername = (username: string): boolean => {
-    return username.length >= 8 && username.length <= 30 && /^[a-zA-Z0-9]+$/.test(username);
-  };
-
-  const validateName = (name: string): boolean => {
-    return name.length >= 2 && /^[a-zA-Zа-яА-Я]+$/.test(name);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
-    if (!validateEmail(formData.email)) {
-      setError('Пожалуйста, введите корректный email адрес');
+    // Проверяем, существует ли пользователь с таким именем
+    const existingUser = users.find(u => u.username === formData.username);
+    if (!existingUser) {
+      setError('Пользователь с таким именем не найден');
       return;
     }
 
-    if (!validateUsername(formData.username)) {
-      setError('Имя пользователя должно содержать от 8 до 30 символов и только английские буквы и цифры');
-      return;
-    }
-
-    if (!validateName(formData.firstName)) {
-      setError('Имя должно содержать минимум 2 символа и только буквы');
-      return;
-    }
-
-    if (!validateName(formData.lastName)) {
-      setError('Фамилия должна содержать минимум 2 символа и только буквы');
-      return;
-    }
-
-    if (formData.patronymic && !validateName(formData.patronymic)) {
-      setError('Отчество должно содержать только буквы');
+    // Проверяем, не добавлен ли уже пользователь в доску
+    if (existingUser.boardIds.includes(currentBoardId || '')) {
+      setError('Пользователь уже добавлен в эту доску');
       return;
     }
     
     if (editingUser) {
-      // Проверка дубликатов при редактировании (исключая текущего пользователя)
-      const existingUserByEmail = users.find(u => u.email.toLowerCase() === formData.email.toLowerCase() && u.id !== editingUser.id);
-      const existingUserByUsername = users.find(u => u.username.toLowerCase() === formData.username.toLowerCase() && u.id !== editingUser.id);
-      
-      if (existingUserByEmail) {
-        setError('Пользователь с таким email уже существует');
-        return;
-      }
-      
-      if (existingUserByUsername) {
-        setError('Пользователь с таким именем пользователя уже существует');
-        return;
-      }
-      
-      updateUser(editingUser.id, { ...formData, password: editingUser.password });
+      // Обновляем роль пользователя
+      updateUser(editingUser.id, { role: formData.role });
       setEditingUser(null);
       setShowAddUser(false);
     } else {
-      // Генерируем временный пароль для нового пользователя
-      const tempPassword = 'password123';
-      const result = await addUser({ ...formData, password: tempPassword });
-      if (!result.success) {
-        setError(result.message);
-        return;
-      }
+      // Добавляем существующего пользователя в доску
+      const updatedBoardIds = [...existingUser.boardIds, currentBoardId || ''];
+      updateUser(existingUser.id, { 
+        boardIds: updatedBoardIds,
+        role: formData.role 
+      });
       setShowAddUser(false);
     }
     
-    setFormData({ username: '', email: '', firstName: '', lastName: '', patronymic: '', role: 'user' });
+    setFormData({ username: '', role: 'user' });
   };
 
   const handleEdit = (user: User) => {
     setEditingUser(user);
     setFormData({
       username: user.username,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      patronymic: user.patronymic || '',
       role: user.role,
     });
     setShowAddUser(true);
@@ -144,13 +97,14 @@ export function UserManagement() {
     return {
       completed: userTasks.filter(task => task.status === 'completed').length,
       inProgress: userTasks.filter(task => task.status === 'in-progress').length,
+      created: userTasks.filter(task => task.status === 'created').length,
     };
   };
 
   const cancelEdit = () => {
     setShowAddUser(false);
     setEditingUser(null);
-    setFormData({ username: '', email: '', firstName: '', lastName: '', patronymic: '', role: 'user' });
+    setFormData({ username: '', role: 'user' });
     setError('');
   };
 
@@ -197,7 +151,7 @@ export function UserManagement() {
         {showAddUser && currentUser?.role === 'admin' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
             <h3 className="text-md font-semibold text-gray-900 mb-4 uppercase">
-              {editingUser ? 'РЕДАКТИРОВАТЬ' : 'ДОБАВИТЬ ПОЛЬЗОВАТЕЛЯ'}
+              {editingUser ? 'РЕДАКТИРОВАТЬ РОЛЬ' : 'ДОБАВИТЬ ПОЛЬЗОВАТЕЛЯ В ДОСКУ'}
             </h3>
             
             {error && (
@@ -208,75 +162,21 @@ export function UserManagement() {
             )}
             
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
-                  ИМЯ ПОЛЬЗОВАТЕЛЯ
-                </label>
-                <input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#CFE8FF] focus:border-[#CFE8FF] transition-colors"
-                  placeholder="ВВЕДИТЕ ИМЯ ПОЛЬЗОВАТЕЛЯ"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
-                  EMAIL АДРЕС
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#CFE8FF] focus:border-[#CFE8FF] transition-colors"
-                  placeholder="ВВЕДИТЕ EMAIL АДРЕС"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
+              {!editingUser && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
-                    ИМЯ
+                    ИМЯ ПОЛЬЗОВАТЕЛЯ
                   </label>
                   <input
                     type="text"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#CFE8FF] focus:border-[#CFE8FF] transition-colors"
-                    placeholder="ИМЯ"
+                    placeholder="ВВЕДИТЕ ИМЯ ПОЛЬЗОВАТЕЛЯ"
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
-                    ФАМИЛИЯ
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#CFE8FF] focus:border-[#CFE8FF] transition-colors"
-                    placeholder="ФАМИЛИЯ"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
-                  ОТЧЕСТВО (НЕОБЯЗАТЕЛЬНО)
-                </label>
-                <input
-                  type="text"
-                  value={formData.patronymic}
-                  onChange={(e) => setFormData({ ...formData, patronymic: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#CFE8FF] focus:border-[#CFE8FF] transition-colors"
-                  placeholder="ОТЧЕСТВО"
-                />
-              </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
@@ -330,7 +230,7 @@ export function UserManagement() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-blue-300 to-teal-300 flex items-center justify-center">
+                        <div className="w-full h-full bg-gradient-to-br from-blue-300 to-teal-300 rounded-full flex items-center justify-center">
                           {user.firstName.charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -432,7 +332,7 @@ export function UserManagement() {
       {showAddUser && currentUser?.role === 'admin' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 uppercase">
-            {editingUser ? 'РЕДАКТИРОВАТЬ ПОЛЬЗОВАТЕЛЯ' : 'ДОБАВИТЬ НОВОГО ПОЛЬЗОВАТЕЛЯ'}
+            {editingUser ? 'РЕДАКТИРОВАТЬ РОЛЬ ПОЛЬЗОВАТЕЛЯ' : 'ДОБАВИТЬ ПОЛЬЗОВАТЕЛЯ В ДОСКУ'}
           </h3>
           
           {error && (
@@ -442,76 +342,22 @@ export function UserManagement() {
             </div>
           )}
           
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
-                ИМЯ ПОЛЬЗОВАТЕЛЯ
-              </label>
-              <input
-                type="text"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#CFE8FF] focus:border-[#CFE8FF] transition-colors"
-                placeholder="ВВЕДИТЕ ИМЯ ПОЛЬЗОВАТЕЛЯ"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
-                EMAIL АДРЕС
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#CFE8FF] focus:border-[#CFE8FF] transition-colors"
-                placeholder="ВВЕДИТЕ EMAIL АДРЕС"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
-                ИМЯ
-              </label>
-              
-              <input
-                type="text"
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#CFE8FF] focus:border-[#CFE8FF] transition-colors"
-                placeholder="ВВЕДИТЕ ИМЯ"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
-                ФАМИЛИЯ
-              </label>
-              <input
-                type="text"
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#CFE8FF] focus:border-[#CFE8FF] transition-colors"
-                placeholder="ВВЕДИТЕ ФАМИЛИЮ"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
-                ОТЧЕСТВО (НЕОБЯЗАТЕЛЬНО)
-              </label>
-              <input
-                type="text"
-                value={formData.patronymic}
-                onChange={(e) => setFormData({ ...formData, patronymic: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#CFE8FF] focus:border-[#CFE8FF] transition-colors"
-                placeholder="ВВЕДИТЕ ОТЧЕСТВО"
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {!editingUser && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
+                  ИМЯ ПОЛЬЗОВАТЕЛЯ
+                </label>
+                <input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#CFE8FF] focus:border-[#CFE8FF] transition-colors"
+                  placeholder="ВВЕДИТЕ ИМЯ ПОЛЬЗОВАТЕЛЯ"
+                  required
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
@@ -533,7 +379,7 @@ export function UserManagement() {
                 className="text-gray-800 px-6 py-2 rounded-xl font-medium uppercase"
                 style={{ backgroundColor: '#CFE8FF' }}
               >
-                {editingUser ? 'ОБНОВИТЬ ПОЛЬЗОВАТЕЛЯ' : 'ДОБАВИТЬ ПОЛЬЗОВАТЕЛЯ'}
+                {editingUser ? 'ОБНОВИТЬ РОЛЬ' : 'ДОБАВИТЬ В ДОСКУ'}
               </button>
               <button
                 type="button"
@@ -556,6 +402,7 @@ export function UserManagement() {
                 <th className="text-left py-4 px-6 font-medium text-gray-700 uppercase">ПОЛЬЗОВАТЕЛЬ</th>
                 <th className="text-left py-4 px-6 font-medium text-gray-700 uppercase">ВЫПОЛНЕНО</th>
                 <th className="text-left py-4 px-6 font-medium text-gray-700 uppercase">В ПРОЦЕССЕ</th>
+                <th className="text-left py-4 px-6 font-medium text-gray-700 uppercase">СОЗДАНО</th>
                 <th className="text-left py-4 px-6 font-medium text-gray-700 uppercase">ЭФФЕКТИВНОСТЬ</th>
                 {currentUser?.role === 'admin' && (
                   <th className="text-right py-4 px-6 font-medium text-gray-700 uppercase">ДЕЙСТВИЯ</th>
@@ -566,7 +413,7 @@ export function UserManagement() {
               {boardUsers.map((user) => {
                 const stats = getUserTaskStats(user.id);
                 const isCurrentUser = user.id === currentUser?.id;
-                const total = stats.completed + stats.inProgress;
+                const total = stats.completed + stats.inProgress + stats.created;
                 const efficiency = total > 0 ? Math.round((stats.completed / total) * 100) : 0;
                 
                 return (
@@ -581,7 +428,7 @@ export function UserManagement() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-blue-300 to-teal-300 flex items-center justify-center">
+                            <div className="w-full h-full bg-gradient-to-br from-blue-300 to-teal-300 rounded-full flex items-center justify-center">
                               {user.firstName.charAt(0).toUpperCase()}
                             </div>
                           )}
@@ -621,6 +468,11 @@ export function UserManagement() {
                     <td className="py-4 px-6">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
                         {stats.inProgress}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                        {stats.created}
                       </span>
                     </td>
                     <td className="py-4 px-6">

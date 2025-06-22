@@ -596,6 +596,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
+    // Удаляем уведомления о завершении, если задача была перемещена из "Выполнено"
+    if (existingTask.status === 'completed' && updates.status && updates.status !== 'completed') {
+      const completionNotifications = state.notifications.filter(
+        n => n.type === 'task_completed' && n.relatedId === taskId
+      );
+      completionNotifications.forEach(notification => {
+        dispatch({ type: 'UPDATE_NOTIFICATION', payload: { id: notification.id, updates: { isRead: true } } });
+      });
+    }
+
     // Уведомления о новых назначениях
     if (updates.assigneeIds) {
       const newAssignees = updates.assigneeIds.filter(id => !existingTask.assigneeIds.includes(id));

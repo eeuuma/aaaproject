@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Save, User, Mail, Lock, Upload, Eye, EyeOff, BarChart3 } from 'lucide-react';
+import { X, Save, User, Mail, Lock, Upload, Eye, EyeOff, BarChart3, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface ProfileModalProps {
@@ -63,12 +63,33 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Проверяем тип файла (только изображения)
+      if (!file.type.startsWith('image/')) {
+        setError('МОЖНО ЗАГРУЖАТЬ ТОЛЬКО ИЗОБРАЖЕНИЯ');
+        return;
+      }
+      
+      // Проверяем размер файла (максимум 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        setError('РАЗМЕР ИЗОБРАЖЕНИЯ НЕ ДОЛЖЕН ПРЕВЫШАТЬ 2MB');
+        return;
+      }
+      
       setAvatar(file);
       const reader = new FileReader();
       reader.onload = (e) => {
         setAvatarPreview(e.target?.result as string);
       };
       reader.readAsDataURL(file);
+      setError('');
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatar(null);
+    setAvatarPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -134,6 +155,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
     if (avatar) {
       updates.avatar = avatarPreview;
+    } else if (avatarPreview === null && currentUser?.avatar) {
+      updates.avatar = undefined;
     }
 
     updateCurrentUser(updates);
@@ -164,11 +187,11 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900 uppercase">ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ</h2>
+        <div className="flex items-center justify-between p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #B6C2FC 0%, #A4D2FC 100%)' }}>
+          <h2 className="text-xl font-semibold text-white uppercase">ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ</h2>
           <button
             onClick={onClose}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-white hover:text-gray-200 hover:bg-white/20 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -215,7 +238,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                       className="w-24 h-24 rounded-full object-cover border-4 border-gray-200"
                     />
                   ) : (
-                    <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-2xl border-4 border-gray-200">
+                    <div className="w-24 h-24 bg-gradient-to-br from-purple-300 to-pink-300 rounded-full flex items-center justify-center text-white font-bold text-2xl border-4 border-gray-200">
                       {currentUser?.firstName?.charAt(0).toUpperCase()}{currentUser?.lastName?.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -227,6 +250,15 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                   >
                     <Upload className="w-4 h-4" />
                   </button>
+                  {avatarPreview && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full transition-colors hover:bg-red-600"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
                 <input
                   ref={fileInputRef}
@@ -235,7 +267,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                   onChange={handleAvatarChange}
                   className="hidden"
                 />
-                <p className="text-sm text-gray-500 mt-2 uppercase">НАЖМИТЕ НА ИКОНКУ ДЛЯ ЗАГРУЗКИ АВАТАРА</p>
+                <p className="text-sm text-gray-500 mt-2 uppercase">НАЖМИТЕ НА ИКОНКУ ДЛЯ ЗАГРУЗКИ АВАТАРА (МАКС. 2MB)</p>
               </div>
 
               {/* Имя и фамилия */}

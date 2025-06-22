@@ -20,8 +20,6 @@ import {
   Play,
   Download,
   Pause,
-  Undo,
-  Redo,
 } from 'lucide-react';
 import { Task, User as UserType, Comment, Attachment, VoiceMessage } from '../types';
 import { useApp } from '../context/AppContext';
@@ -54,8 +52,6 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
-  const [history, setHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
@@ -93,8 +89,6 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
     }
     setNewAttachments([]);
     setHasUnsavedChanges(false);
-    setHistory([]);
-    setHistoryIndex(-1);
   }, [task, currentUser, defaultStatus]);
 
   // Отслеживание изменений
@@ -133,10 +127,19 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
       return;
     }
     
-    // Обработка вложений
+    // Обработка вложений с ограничением размера (5MB)
+    const maxFileSize = 5 * 1024 * 1024; // 5MB
+    const validAttachments = newAttachments.filter(file => {
+      if (file.size > maxFileSize) {
+        alert(`Файл ${file.name} превышает максимальный размер 5MB`);
+        return false;
+      }
+      return true;
+    });
+    
     const processedAttachments = [
       ...attachments,
-      ...newAttachments.map(file => ({
+      ...validAttachments.map(file => ({
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
         name: file.name,
         size: file.size,
@@ -200,7 +203,17 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setNewAttachments(prev => [...prev, ...files]);
+    const maxFileSize = 5 * 1024 * 1024; // 5MB
+    
+    const validFiles = files.filter(file => {
+      if (file.size > maxFileSize) {
+        alert(`Файл ${file.name} превышает максимальный размер 5MB`);
+        return false;
+      }
+      return true;
+    });
+    
+    setNewAttachments(prev => [...prev, ...validFiles]);
   };
 
   const removeNewAttachment = (index: number) => {
@@ -285,27 +298,6 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
     setVoiceMessages(prev => prev.filter(vm => vm.id !== voiceId));
   };
 
-  const saveToHistory = (text: string) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(text);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  };
-
-  const undo = () => {
-    if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setFormData({ ...formData, description: history[historyIndex - 1] });
-    }
-  };
-
-  const redo = () => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setFormData({ ...formData, description: history[historyIndex + 1] });
-    }
-  };
-
   const applyTextFormat = (format: string) => {
     const textarea = descriptionRef.current;
     if (!textarea) return;
@@ -346,7 +338,6 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
     }
 
     const newValue = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
-    saveToHistory(formData.description);
     setFormData({ ...formData, description: newValue });
     
     setTimeout(() => {
@@ -446,25 +437,6 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
               <div className="flex items-center space-x-1 mb-2 p-2 rounded-xl border" style={{ backgroundColor: '#a4d2fc' }}>
                 <button
                   type="button"
-                  onClick={undo}
-                  disabled={historyIndex <= 0}
-                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg transition-colors disabled:opacity-50"
-                  title="ОТМЕНИТЬ"
-                >
-                  <Undo className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={redo}
-                  disabled={historyIndex >= history.length - 1}
-                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg transition-colors disabled:opacity-50"
-                  title="ПОВТОРИТЬ"
-                >
-                  <Redo className="w-4 h-4" />
-                </button>
-                <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                <button
-                  type="button"
                   onClick={() => applyTextFormat('bold')}
                   className="p-2 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg transition-colors"
                   title="ЖИРНЫЙ"
@@ -562,7 +534,7 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
             {/* Вложения и голосовые сообщения */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 uppercase">
-                ВЛОЖЕНИЯ И ГОЛОСОВЫЕ СООБЩЕНИЯ
+                ВЛОЖЕНИЯ И ГОЛОСОВЫЕ СООБЩЕНИЯ (МАКС. 5MB)
               </label>
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
@@ -647,6 +619,7 @@ export function TaskModal({ task, isOpen, onClose, defaultStatus = 'created' }: 
                   ref={fileInputRef}
                   type="file"
                   multiple
+                  accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt"
                   onChange={handleFileUpload}
                   className="hidden"
                 />
